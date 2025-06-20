@@ -1,0 +1,8 @@
+; Calculate the square root of 23*100
+01 05 00 00 52  ;jump to address 52
+50 00 00 01 00  ;store 100 at address 50
+51 00 00 00 23  ;store 23 at address 51
+52 03 51 50 10  ;multiply values at 50 and 51, and store at 10
+53 09 10 00 11  ;take the square root of value at 10 and store at 11
+54 08 11 00 00  ;write value at 11 to console
+55 06 00 00 00  ;stop program
