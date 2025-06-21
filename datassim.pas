@@ -22,6 +22,7 @@ type
     comment:    string[64];
     data:       array[0..3] of byte;
   end;
+  TTwoDigit =   string[2];
 var
   b:            byte;
   breakpoint:   byte;                                     { breakpoint address }
@@ -73,7 +74,7 @@ const
   HEADER2 =     '(C) 2025 Pozsar Zsolt <pozsarzs@gmail.com>';
   HEADER3 =     'Licence: EUPL v1.2';
   HINT =        'Type "help" for useable commands.';
-  MESSAGE:      array[0..16] of string[39] = (
+  MESSAGE:      array[0..19] of string[39] = (
                 'No such command!',
                 'The 1st ',
                 'The 2nd ',
@@ -90,15 +91,16 @@ const
                 'The commment is deleted from ',
                 'The commment is added to ',
                 'The value is stored at address ',
-                'The value at address ');
+                'The value at address ',
+                'Memory content is exported to ',
+                'Cannot write ',
+                'Memory cells are filled with ');
   PROMPT =      'SIM>';
 
-function parsingcommand(command: TCommand): boolean; forward;
-
-// INSERT ZERO BEFORE [0-9]
-function addzero(v: word): string;
+{ INSERT ZERO BEFORE [0-9] }
+function addzero(v: integer): TTwoDigit;
 var
-  u: string;
+  u: TTwoDigit;
 begin
   str(v:0, u);
   if length(u) = 1 then u := '0' + u;
@@ -112,6 +114,7 @@ var
   ec:  integer;
   ip1: integer;
 begin
+  e := 0;
   { check parameters }
   if length(p1) = 0 then
   begin
@@ -135,8 +138,8 @@ begin
         if (ip1 >= 0) and (ip1 <= 99) then e := 0 else e := 11
       else e := 12;
       case e of
-        11: writeln(MESSAGE[1]+MESSAGE[8]);
-        12: writeln(MESSAGE[1]+MESSAGE[7]);
+        11: writeln(MESSAGE[1] + MESSAGE[8]);
+        12: writeln(MESSAGE[1] + MESSAGE[7]);
       else
         begin
           breakpoint := ip1;
@@ -155,6 +158,7 @@ var
   ec:  integer;
   e:   byte;
 begin
+  e := 0;
   { check parameters }
   val(p1, ip1, ec);
   if length(p2) = 0 then e := 22;
@@ -163,22 +167,22 @@ begin
     if (ip1 >= 0) and (ip1 <= 99) then e := 0 else e := 11
   else e := 12;
   case e of
-    11: writeln(MESSAGE[1]+MESSAGE[8]);
-    12: writeln(MESSAGE[1]+MESSAGE[7]);
-    22: writeln(MESSAGE[2]+MESSAGE[7]);
+    11: writeln(MESSAGE[1] + MESSAGE[8]);
+    12: writeln(MESSAGE[1] + MESSAGE[7]);
+    22: writeln(MESSAGE[2] + MESSAGE[7]);
   else
     if p2 = '-' then
     begin
       { delete comment }
       mem[ip1].comment := '';
-      writeln(MESSAGE[13] + p1);
+      writeln(MESSAGE[13] + p1 + '.');
     end else
     begin
       { add comment }
       mem[ip1].comment := '';
       for b := 1 to length(p2) do
         if p2[b] <> #92 then mem[ip1].comment := mem[ip1].comment + p2;
-      writeln(MESSAGE[14] + p1);
+      writeln(MESSAGE[14] + p1 + '.');
     end;  
   end;
 end;
@@ -190,6 +194,7 @@ var
   ec:                      integer;
   e:                       byte;
 begin
+  e := 0;
   { check parameters }
   val(p1, ip1, ec);
   if ec = 0
@@ -225,16 +230,16 @@ begin
     end else e := 11
   else e := 12;
   case e of
-    11: writeln(MESSAGE[1]+MESSAGE[8]);
-    12: writeln(MESSAGE[1]+MESSAGE[7]);
-    21: writeln(MESSAGE[2]+MESSAGE[8]);
-    22: writeln(MESSAGE[2]+MESSAGE[7]);
-    31: writeln(MESSAGE[3]+MESSAGE[8]);
-    32: writeln(MESSAGE[3]+MESSAGE[7]);
-    41: writeln(MESSAGE[4]+MESSAGE[8]);
-    42: writeln(MESSAGE[4]+MESSAGE[7]);
-    51: writeln(MESSAGE[5]+MESSAGE[8]);
-    52: writeln(MESSAGE[5]+MESSAGE[7]);
+    11: writeln(MESSAGE[1] + MESSAGE[8]);
+    12: writeln(MESSAGE[1] + MESSAGE[7]);
+    21: writeln(MESSAGE[2] + MESSAGE[8]);
+    22: writeln(MESSAGE[2] + MESSAGE[7]);
+    31: writeln(MESSAGE[3] + MESSAGE[8]);
+    32: writeln(MESSAGE[3] + MESSAGE[7]);
+    41: writeln(MESSAGE[4] + MESSAGE[8]);
+    42: writeln(MESSAGE[4] + MESSAGE[7]);
+    51: writeln(MESSAGE[5] + MESSAGE[8]);
+    52: writeln(MESSAGE[5] + MESSAGE[7]);
   else
     begin
       { store values }
@@ -255,6 +260,7 @@ var
   ec:       integer;
   e:        byte;
 begin
+  e := 0;
   { check parameters }
   val(p1, ip1, ec);
   if ec = 0
@@ -269,10 +275,10 @@ begin
     end else e := 11
   else e := 12;
   case e of
-    11: writeln(MESSAGE[1]+MESSAGE[8]);
-    12: writeln(MESSAGE[1]+MESSAGE[7]);
-    21: writeln(MESSAGE[2]+MESSAGE[8]);
-    22: writeln(MESSAGE[2]+MESSAGE[7]);
+    11: writeln(MESSAGE[1] + MESSAGE[8]);
+    12: writeln(MESSAGE[1] + MESSAGE[7]);
+    21: writeln(MESSAGE[2] + MESSAGE[8]);
+    22: writeln(MESSAGE[2] + MESSAGE[7]);
   else
     begin
       { show memory content with comment }
@@ -298,6 +304,7 @@ var
   ec:  integer;
   ip1: integer;
 begin
+  e := 0;
   { check parameters }
   val(p1, ip1, ec);
   if ec = 0
@@ -305,8 +312,8 @@ begin
     if (ip1 >= 0) and (ip1 <= 99) then e := 0 else e := 11
   else e := 12;
   case e of
-    11: writeln(MESSAGE[1]+MESSAGE[8]);
-    12: writeln(MESSAGE[1]+MESSAGE[7]);
+    11: writeln(MESSAGE[1] + MESSAGE[8]);
+    12: writeln(MESSAGE[1] + MESSAGE[7]);
   else
     begin
       { show content of memory cell }
@@ -321,7 +328,34 @@ end;
 
 { COMMAND 'export' }
 procedure cmd_export(p1: TSplitted);
+var
+  address, data: byte;
+  binfile:       file of byte;
+  e:             byte;
 begin
+  e := 0;
+  { check parameters }
+  if length(p1) = 0 then e := 12 else
+  begin
+    assign(binfile, p1);
+    {$I-}
+      rewrite(binfile);
+    {$I+}
+    if ioresult <> 0 then e := 2 else
+    begin
+      { write memory content to binary file }
+      for address := 0 to 99 do
+        for data := 0 to 3 do
+          write(binfile, mem[address].data[data]);
+      close(binfile);
+    end;
+  end;
+  case e of
+     2: writeln(MESSAGE[18] + p1 + '.');
+    12: writeln(MESSAGE[1] + MESSAGE[7]);
+  else
+    writeln(MESSAGE[17] + p1 + '.');
+  end;
 end;
 
 { COMMAND 'fill' }
@@ -332,6 +366,7 @@ var
   b:                            byte;
   e:                            byte;
 begin
+  e := 0;
   { check parameters }
   val(p1, ip1, ec);
   if ec = 0
@@ -374,28 +409,29 @@ begin
     end else e := 11
   else e := 12;
   case e of
-    11: writeln(MESSAGE[1]+MESSAGE[8]);
-    12: writeln(MESSAGE[1]+MESSAGE[7]);
-    21: writeln(MESSAGE[2]+MESSAGE[8]);
-    22: writeln(MESSAGE[2]+MESSAGE[7]);
-    31: writeln(MESSAGE[3]+MESSAGE[8]);
-    32: writeln(MESSAGE[3]+MESSAGE[7]);
-    41: writeln(MESSAGE[4]+MESSAGE[8]);
-    42: writeln(MESSAGE[4]+MESSAGE[7]);
-    51: writeln(MESSAGE[5]+MESSAGE[8]);
-    52: writeln(MESSAGE[5]+MESSAGE[7]);
-    61: writeln(MESSAGE[6]+MESSAGE[8]);
-    62: writeln(MESSAGE[6]+MESSAGE[7]);
+    11: writeln(MESSAGE[1] + MESSAGE[8]);
+    12: writeln(MESSAGE[1] + MESSAGE[7]);
+    21: writeln(MESSAGE[2] + MESSAGE[8]);
+    22: writeln(MESSAGE[2] + MESSAGE[7]);
+    31: writeln(MESSAGE[3] + MESSAGE[8]);
+    32: writeln(MESSAGE[3] + MESSAGE[7]);
+    41: writeln(MESSAGE[4] + MESSAGE[8]);
+    42: writeln(MESSAGE[4] + MESSAGE[7]);
+    51: writeln(MESSAGE[5] + MESSAGE[8]);
+    52: writeln(MESSAGE[5] + MESSAGE[7]);
+    61: writeln(MESSAGE[6] + MESSAGE[8]);
+    62: writeln(MESSAGE[6] + MESSAGE[7]);
   else
     begin
-      for b := ip1 to ip1 + ip2 do
-        if (ip1 + ip2) <= 99 then
+      for b := ip1 to ip1 + ip2 - 1 do
+        if b <= 99 then
         begin
           mem[b].data[0] := ip3;
           mem[b].data[1] := ip4;
           mem[b].data[2] := ip5;
           mem[b].data[3] := ip6;
         end;
+      writeln(MESSAGE[19] + p3 + ' ' + p4 + ' ' + p5 + ' ' + p6 + '.');
     end;
   end;
 end;
@@ -420,10 +456,9 @@ procedure cmd_reset;
 var
   l: boolean;
 begin
-  l := parsingcommand('fill 00 100 00 00 00 00');
+  cmd_fill('00', '100', '00', '00', '00', '00');
   breakpoint := 255;
   prg_counter := 0;
-  prg_comment := '';
 end;
 
 { COMMAND 'run' }
@@ -534,7 +569,7 @@ begin
   writeln;
   writeln(HINT);
   { initialize memory, breakpoint and program counter }
-  quit := parsingcommand('reset');
+  cmd_reset;
   { main operation }
   repeat
     write(PROMPT); readln(com);
