@@ -54,21 +54,21 @@ const
                 'run program from AA address',
                 'save source code',
                 'run program step-by-step from AA address'),(
-                'break [AA|-]',
+                'break [AA|-]             ',
                 'comment AA Jump\ to\ 12|-',
-                'deposit AA D1 D2 D3 D4',
-                'dump AA CN',
-                'examine AA',
-                'export filename.bin',
-                'fill AA CN D1 D2 D3 D4',
-                'help [command]',
-                'import filename.bin',
-                'load filename.lst',
-                'quit',
-                'reset',
-                'run [AA]',
-                'save filename.lst',
-                'step'));
+                'deposit AA D1 D2 D3 D4   ',
+                'dump AA CN               ',
+                'examine AA               ',
+                'export filename.bin      ',
+                'fill AA CN D1 D2 D3 D4   ',
+                'help [command]           ',
+                'import filename.bin      ',
+                'load filename.lst        ',
+                'quit                     ',
+                'reset                    ',
+                'run [AA]                 ',
+                'save filename.lst        ',
+                'step                     '));
   COMMENT =     ';';
   HEADER1 =     'DATASSim v0.1 for CP/M and DOS';
   HEADER2 =     '(C) 2025 Pozsar Zsolt <pozsarzs@gmail.com>';
@@ -438,7 +438,18 @@ end;
 
 { COMMAND 'help' }
 procedure cmd_help(p1: TSplitted);
+var
+  l: boolean;
 begin
+  l := false;
+  { show description about all or selected command(s) }
+  for b := 0 to COMMARRSIZE do
+    if (length(p1) = 0) or (COMMANDS[b] = p1) then
+    begin 
+      l := true; 
+      writeln(COMMANDS_INF[1, b] + #9 + COMMANDS_INF[0, b]);
+    end;    
+  if not l then writeln(MESSAGE[0]);
 end;
 
 { COMMAND 'import' }
