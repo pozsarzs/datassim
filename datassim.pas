@@ -30,7 +30,6 @@ var
   mem:          array[0..99] of TMemcell;                           { 'memory' }
   prg_counter:  byte;                                        { program counter }
   quit:         boolean;
-  s:            string[255];
   splitted:     array[0..7] of TSplitted;                   { splitted command }
 const
   COMMARRSIZE = 14;
@@ -74,7 +73,7 @@ const
   HEADER2 =     '(C) 2025 Pozsar Zsolt <pozsarzs@gmail.com>';
   HEADER3 =     'Licence: EUPL v1.2';
   HINT =        'Type "help" for useable commands.';
-  MESSAGE:      array[0..19] of string[39] = (
+  MESSAGE:      array[0..26] of string[39] = (
                 'No such command!',
                 'The 1st ',
                 'The 2nd ',
@@ -94,7 +93,14 @@ const
                 'The value at address ',
                 'Memory content is exported to ',
                 'Cannot write ',
-                'Memory cells are filled with ');
+                'Memory cells are filled with ',
+                'Memory content is imported from ',
+                'Cannot read ',
+                'The binary file size is small.',
+                'Memory content is loaded from ',
+                'Too short line: ',
+                'Illegal character in: ',
+                'The simulator has been reset.');
   PROMPT =      'SIM>';
 
 { INSERT ZERO BEFORE [0-9] }
@@ -454,22 +460,141 @@ end;
 
 { COMMAND 'import' }
 procedure cmd_import(p1: TSplitted);
+var
+  address, data: byte;
+  binfile:       file of byte;
+  e:             byte;
 begin
+  e := 0;
+  { check parameters }
+  if length(p1) = 0 then e := 12 else
+  begin
+    assign(binfile, p1);
+    {$I-}
+      reset(binfile);
+    {$I+}
+    if ioresult <> 0 then e := 2 else
+    begin
+      for address := 0 to 99 do
+        for data := 0 to 3 do
+          mem[address].data[data] := 0;
+      {$I-}
+        { read binary file content }
+        for address := 0 to 99 do
+          for data := 0 to 3 do
+            read(binfile, mem[address].data[data]);
+      {$I+}
+      if ioresult <> 0 then e := 3;
+      close(binfile);
+    end;
+  end;
+  case e of
+     2: writeln(MESSAGE[21] + p1 + '.');
+     3: writeln(MESSAGE[22]);
+    12: writeln(MESSAGE[1] + MESSAGE[7]);
+  else
+    writeln(MESSAGE[20] + p1 + '.');
+  end;
 end;
 
 { COMMAND 'load' }
 procedure cmd_load(p1: TSplitted);
+var
+  address, data: byte;
+  b:             byte;
+  i1, i2:        integer;
+  e:             byte;
+  ec:            integer;
+  line:          byte;
+  lstfile:       text;
+  s1, s2:        string[255];
+label error;
 begin
+  e := 0;
+  { check parameters }
+  if length(p1) = 0 then e := 12 else
+  begin
+    assign(lstfile, p1);
+    {$I-}
+      reset(lstfile);
+    {$I+}
+    if ioresult <> 0 then e := 2 else
+    begin
+      for address := 0 to 99 do
+        for data := 0 to 3 do
+          mem[address].data[data] := 0;
+      { read text file content }
+      line := 0;
+      repeat
+        readln(lstfile, s1);
+        line := line + 1;
+        { get data }
+        s2 := '';
+        { remove all space and tabulator }
+        for b := 1 to length(s1) do
+          if (s1[b] <> #32) and (s1[b] <> #9) then s2 := s2 + s1[b];
+        { check comment sign }
+        if s2[1] <> ';' then
+        begin
+          { check length of line }
+          if length(s2) < 10 then
+          begin
+            e := 3;
+            close(lstfile);
+            goto error;
+          end;
+          { check content }
+          for b := 1 to 10 do
+            if not ((s2[b] >= #48) and (s2[b] <= #57)) then
+            begin
+              e := 4;
+              close(lstfile);
+              goto error;
+            end;
+          { load to memory }
+          val(s2[1] + s2[2], i1, ec);
+          address := i1;
+          for b := 0 to 3 do
+          begin
+            val(s2[3 + b * 2] + s2[4 + b * 2], i2, ec);
+            mem[address].data[b]:= i2;
+          end;
+          { get comment }
+          b := 1;
+          repeat
+            b := b + 1;
+          until (s1[b] = ';') or (b = length(s1));
+          { load to memory }
+          if b + 1 < length(s1) then
+            for b := b + 1 to length(s1) do
+             mem[address].comment := mem[address].comment + s1[b];
+        end;
+      until (eof(lstfile)) or (line = 99);
+      close(lstfile);
+    end;
+  end;
+error:  
+  case e of
+     2: writeln(MESSAGE[21] + p1 + '.');
+     3: writeln(MESSAGE[24], line);
+     4: writeln(MESSAGE[25], line);
+    12: writeln(MESSAGE[1] + MESSAGE[7]);
+  else
+    writeln(MESSAGE[23] + p1 + '.');
+  end;
 end;
 
 { COMMAND 'reset' }
 procedure cmd_reset;
 var
-  l: boolean;
+  address, data: byte;
 begin
-  cmd_fill('00', '100', '00', '00', '00', '00');
+  for address := 0 to 99 do
+    for data := 0 to 3 do
+      mem[address].data[data] := 0;
   breakpoint := 255;
   prg_counter := 0;
+  writeln(MESSAGE[26]);
 end;
 
 { COMMAND 'run' }
@@ -572,15 +697,15 @@ begin
 end;
 
 begin
-  { show information and command line hint}
+  { show program information }
   writeln(HEADER1);
   writeln(HEADER2);
   writeln(HEADER3);
   for b := 1 to length(HEADER2) do write('-');
   writeln;
-  writeln(HINT);
   { initialize memory, breakpoint and program counter }
   cmd_reset;
+  writeln(HINT);
   { main operation }
   repeat
     write(PROMPT); readln(com);
