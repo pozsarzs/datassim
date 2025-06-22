@@ -19,8 +19,8 @@ type
   TFilename =   string[12];
   TSplitted =   string[64];
   TMemcell =    record
-    comment:    string[64];
     data:       array[0..3] of byte;
+    comment:    string[64];
   end;
   TTwoDigit =   string[2];
 var
@@ -34,6 +34,12 @@ var
   splitted:     array[0..7] of TSplitted;                   { splitted command }
 const
   COMMARRSIZE = 14;
+  COMMENT =     ';';
+  HEADER1 =     'DATASSim v0.1 for CP/M and DOS';
+  HEADER2 =     '(C) 2025 Pozsar Zsolt <pozsarzs@gmail.com>';
+  HEADER3 =     'Licence: EUPL v1.2';
+  HINT =        'Type ''help [command]'' or ''help code'' for more information.';
+  PROMPT =      'SIM>';
   COMMANDS:     array[0..COMMARRSIZE] of string[7] = (
                 'break',  'comment','deposit','dump',   'examine','export',
                 'fill',   'help',   'import', 'load',   'quit',   'reset',
@@ -41,11 +47,11 @@ const
   COMMANDS_INF: array[0..1,0..COMMARRSIZE] of string[63] = ((
                 'set, get and reset breakpoint address',
                 'add or remove a sigle-line note for AA address',
-                'store D1-4 value at AA address',
+                'store D0-3 value at AA address',
                 'print the value of memory cell number CN from AA',
                 'examine value at AA address',
                 'export memory content to a binary file',
-                'fill the memory cell number CN from AA with the value D1-4',
+                'fill the memory cell number CN from AA with the value D0-3',
                 'help with using the program',
                 'import memory content from a binary file',
                 'load source code',
@@ -56,11 +62,11 @@ const
                 'run program step-by-step from AA address'),(
                 'break [AA|-]             ',
                 'comment AA Jump\ to\ 12|-',
-                'deposit AA D1 D2 D3 D4   ',
+                'deposit AA D0 D1 D2 D3',
                 'dump AA CN               ',
                 'examine AA               ',
                 'export filename.bin      ',
-                'fill AA CN D1 D2 D3 D4   ',
+                'fill AA CN D0 D1 D2 D3   ',
                 'help [command]           ',
                 'import filename.bin      ',
                 'load filename.lst        ',
@@ -69,11 +75,6 @@ const
                 'run [AA]                 ',
                 'save filename.lst        ',
                 'step                     '));
-  COMMENT =     ';';
-  HEADER1 =     'DATASSim v0.1 for CP/M and DOS';
-  HEADER2 =     '(C) 2025 Pozsar Zsolt <pozsarzs@gmail.com>';
-  HEADER3 =     'Licence: EUPL v1.2';
-  HINT =        'Type "help" for useable commands.';
   MESSAGE:      array[0..29] of string[39] = (
                 'No such command!',
                 'The 1st ',
@@ -105,7 +106,6 @@ const
                 'Memory content is saved to ',
                 'Run program from address ',
                 'Step-by-step execution from address ');
-  PROMPT =      'SIM>';
 
 { INSERT ZERO BEFORE [0-9] }
 function addzero(v: integer): TTwoDigit;
@@ -451,15 +451,23 @@ procedure cmd_help(p1: TSplitted);
 var
   l: boolean;
 begin
-  l := false;
-  { show description about all or selected command(s) }
-  for b := 0 to COMMARRSIZE do
-    if (length(p1) = 0) or (COMMANDS[b] = p1) then
-    begin 
-      l := true; 
-      writeln(COMMANDS_INF[1, b] + #9 + COMMANDS_INF[0, b]);
-    end;    
-  if not l then writeln(MESSAGE[0]);
+  { show information about machine code }
+  if p1 = 'code' then
+  begin
+
+
+  end else
+  begin
+    l := false;
+    { show description about all or selected command(s) }
+    for b := 0 to COMMARRSIZE do
+      if (length(p1) = 0) or (COMMANDS[b] = p1) then
+      begin 
+        l := true; 
+        writeln(COMMANDS_INF[1, b] + #9 + COMMANDS_INF[0, b]);
+      end;    
+    if not l then writeln(MESSAGE[0]);
+  end;
 end;
 
 { COMMAND 'import' }
@@ -594,8 +602,11 @@ var
   address, data: byte;
 begin
   for address := 0 to 99 do
+  begin
     for data := 0 to 3 do
       mem[address].data[data] := 0;
+    mem[address].comment := '';
+  end;  
   breakpoint := 255;
   prg_counter := 0;
   prg_status[0] := true;
@@ -650,16 +661,38 @@ var
   ec:  integer;
   ip1: integer;
 
-{ INSTRUCTION 'LOAD' }
-function opcode00(d1, d2, d3: byte): boolean;
-begin
-  opcode00 := true;
-end;
-
 { INSTRUCTION 'ADD' }
 function opcode01(d1, d2, d3: byte): boolean;
+var
+  r, m, n: real;
 begin
   opcode01 := true;
+  { check input data }
+  if mem[d1].data[0] div 10 > 1 then opcode01 := false;
+  if opcode01 then
+  begin
+    { convert bytes to real }
+    r := (mem[d1].data[1] mod 10) * 10000 +
+          mem[d1].data[2] * 100 + 
+          mem[d1].data[3]; 
+    if mem[d1].data[1] div 10 = 1 then r := r * (-1);
+    m := (mem[d2].data[1] mod 10) * 10000 +
+          mem[d2].data[2] * 100 + 
+          mem[d2].data[3]; 
+    if mem[d2].data[1] div 10 = 1 then m := m * (-1);
+    { operation }
+    n := r + m;
+    { convert real to bytes }
+    if n < 0 then mem[d3].data[0] := 10 else mem[d3].data[0] := 0;
+    n := abs(trunc(n));
+    mem[d3].data[3] := round(n - 100 * trunc(n / 100));
+    n := trunc(n / 100);
+    mem[d3].data[2] := round(n - 100 * trunc(n / 100));
+    n := trunc(n / 100);
+    mem[d3].data[1] := round(n - 100 * trunc(n / 100));
+    n := trunc(n / 100);
+    mem[d3].data[0] := mem[d3].data[0] + round(n);
+  end;
 end;
 
 { INSTRUCTION 'SUBTRACT' }
@@ -721,7 +754,6 @@ begin
   { check parameters }
   if length(p1) = 0 then prg_counter := 0 else
   begin
-    { set breakpoint address }
     val(p1, ip1, ec);
     if ec = 0
     then
