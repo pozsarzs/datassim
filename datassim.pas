@@ -29,6 +29,7 @@ var
   com:          TCommand;                               { command line content }
   mem:          array[0..99] of TMemcell;                           { 'memory' }
   prg_counter:  byte;                                        { program counter }
+  prg_status:   array[0..3] of boolean;                       { program status }
   quit:         boolean;
   splitted:     array[0..7] of TSplitted;                   { splitted command }
 const
@@ -73,7 +74,7 @@ const
   HEADER2 =     '(C) 2025 Pozsar Zsolt <pozsarzs@gmail.com>';
   HEADER3 =     'Licence: EUPL v1.2';
   HINT =        'Type "help" for useable commands.';
-  MESSAGE:      array[0..26] of string[39] = (
+  MESSAGE:      array[0..29] of string[39] = (
                 'No such command!',
                 'The 1st ',
                 'The 2nd ',
@@ -100,7 +101,10 @@ const
                 'Memory content is loaded from ',
                 'Too short line: ',
                 'Illegal character in: ',
-                'The simulator has been reset.');
+                'The simulator has been reset.',
+                'Memory content is saved to ',
+                'Run program from address ',
+                'Step-by-step execution from address ');
   PROMPT =      'SIM>';
 
 { INSERT ZERO BEFORE [0-9] }
@@ -594,22 +598,150 @@ begin
       mem[address].data[data] := 0;
   breakpoint := 255;
   prg_counter := 0;
+  prg_status[0] := true;
+  prg_status[1] := false;
+  prg_status[2] := false;
+  prg_status[3] := false;
   writeln(MESSAGE[26]);
-end;
-
-{ COMMAND 'run' }
-procedure cmd_run(p1: TSplitted);
-begin
 end;
 
 { COMMAND 'save' }
 procedure cmd_save(p1: TSplitted);
+var
+  address, data: byte;
+  lstfile:       text;
+  e:             byte;
+  s:             string[255];
 begin
+  e := 0;
+  { check parameters }
+  if length(p1) = 0 then e := 12 else
+  begin
+    assign(lstfile, p1);
+    {$I-}
+      rewrite(lstfile);
+    {$I+}
+    if ioresult <> 0 then e := 2 else
+    begin
+      { write memory content to text file }
+      for address := 0 to 99 do
+      begin
+        s := addzero(address) + '  ';
+        for data := 0 to 3 do
+          s := s + addzero(mem[address].data[data]) + ' ';
+        if length(mem[address].comment) > 0 then s := s + ';' + mem[address].comment;
+        writeln(lstfile, s);
+      end;
+      close(lstfile);
+    end;
+  end;
+  case e of
+     2: writeln(MESSAGE[18] + p1 + '.');
+    12: writeln(MESSAGE[1] + MESSAGE[7]);
+  else
+    writeln(MESSAGE[17] + p1 + '.');
+  end;
 end;
 
-{ COMMAND 'step' }
-procedure cmd_step(p1: TSplitted);
+{ COMMAND 'run' }
+procedure cmd_run(sbs: boolean; p1: TSplitted);
+var
+  e:   byte;
+  ec:  integer;
+  ip1: integer;
+
+{ INSTRUCTION 'LOAD' }
+function opcode00(d1, d2, d3: byte): boolean;
 begin
+  opcode00 := true;
+end;
+
+{ INSTRUCTION 'ADD' }
+function opcode01(d1, d2, d3: byte): boolean;
+begin
+  opcode01 := true;
+end;
+
+{ INSTRUCTION 'SUBTRACT' }
+function opcode02(d1, d2, d3: byte): boolean;
+begin
+  opcode02 := true;
+end;
+
+{ INSTRUCTION 'MULTIPLY' }
+function opcode03(d1, d2, d3: byte): boolean;
+begin
+  opcode03 := true;
+end;
+
+{ INSTRUCTION 'DIVIDE' }
+function opcode04(d1, d2, d3: byte): boolean;
+begin
+  opcode04 := true;
+end;
+
+{ INSTRUCTION 'BRANCH' }
+function opcode05(d1, d2, d3: byte): boolean;
+begin
+  opcode05 := true;
+end;
+
+{ INSTRUCTION 'HALT' }
+function opcode06(d1, d2, d3: byte): boolean;
+begin
+  opcode06 := true;
+end;
+
+{ INSTRUCTION 'READ' }
+function opcode07(d1, d2, d3: byte): boolean;
+begin
+  opcode07 := true;
+end;
+
+{ INSTRUCTION 'WRITE' }
+function opcode08(d1, d2, d3: byte): boolean;
+begin
+  opcode08 := true;
+end;
+
+{ INSTRUCTION 'SQRT' }
+function opcode09(d1, d2, d3: byte): boolean;
+begin
+  opcode09 := true;
+end;
+
+{ INSTRUCTION 'ABS' }
+function opcode10(d1, d2, d3: byte): boolean;
+begin
+  opcode10 := true;
+end;
+
+begin
+  e := 0;
+  { check parameters }
+  if length(p1) = 0 then prg_counter := 0 else
+  begin
+    { set breakpoint address }
+    val(p1, ip1, ec);
+    if ec = 0
+    then
+      if (ip1 >= 0) and (ip1 <= 99) then e := 0 else e := 11
+    else e := 12;
+    case e of
+      11: writeln(MESSAGE[1] + MESSAGE[8]);
+      12: writeln(MESSAGE[1] + MESSAGE[7]);
+    else
+      begin
+        prg_counter := ip1;
+        if sbs
+          then writeln(MESSAGE[29], addzero(prg_counter))
+          else writeln(MESSAGE[28], addzero(prg_counter));
+
+        { ... }
+
+      end;
+    end;
+  end;
 end;
 
 { PARSING COMMANDS }
@@ -687,9 +819,9 @@ begin
            9: cmd_load(splitted[1]);
           10: parsingcommand := true;
           11: cmd_reset;
-          12: cmd_run(splitted[1]);
+          12: cmd_run(false, splitted[1]);
           13: cmd_save(splitted[1]);
-          14: cmd_step(splitted[1]);
+          14: cmd_run(true, splitted[1]);
         end;
       end else writeln(MESSAGE[0]);
     end;
