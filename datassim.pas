@@ -4,14 +4,13 @@
 { | datassim.pas                                                             | }
 { | Main program (Turbo Pascal 3.0 CP/M and DOS)                             | }
 { +--------------------------------------------------------------------------+ }
-{
-  This program is free software: you can redistribute it and/or modify it
+
+{ This program is free software: you can redistribute it and/or modify it
   under the terms of the European Union Public License 1.2 version.
 
   This program is distributed in the hope that it will be useful, but WITHOUT
   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-  FOR A PARTICULAR PURPOSE.
-}
+  FOR A PARTICULAR PURPOSE. }
 
 program datassim;
 type
@@ -34,6 +33,7 @@ var
   splitted:     array[0..7] of TSplitted;                   { splitted command }
 const
   COMMARRSIZE = 14;
+  INSTARRSIZE = 19;
   COMMENT =     ';';
   HEADER1 =     'DATASSim v0.1 for CP/M and DOS';
   HEADER2 =     '(C) 2025 Pozsar Zsolt <pozsarzs@gmail.com>';
@@ -62,7 +62,7 @@ const
                 'run program step-by-step from AA address'),(
                 'break [AA|-]             ',
                 'comment AA Jump\ to\ 12|-',
-                'deposit AA D0 D1 D2 D3',
+                'deposit AA D0 D1 D2 D3   ',
                 'dump AA CN               ',
                 'examine AA               ',
                 'export filename.bin      ',
@@ -75,6 +75,27 @@ const
                 'run [AA]                 ',
                 'save filename.lst        ',
                 'step                     '));
+  INST_INF:     array[0..INSTARRSIZE] of string[46] = (
+                'name      OC D0 D1 D2  operation',
+                '----------------------------------------------',
+                '          00 sd dd dd  value at this address' ,
+                'ADD       01 dd dd dd  (D3)=(D1) + (D2)',
+                'SUBTRACT  02 dd dd dd  (D3)=(D1) - (D2)',
+                'MULTIPLY  03 dd dd dd  (D3)=(D1) * (D2)',
+                'DIVIDE    04 dd dd dd  (D3)=(D1) div (D2)',
+                'BRANCH    05 00 00 dd  jump to D3',
+                '          05 01 dd dd  if D2<0 then jump to D3',
+                '          05 02 dd dd  if D2>0 then jump to D3',
+                'HALT      06 00 00 00  stop at this address',
+                'READ      07 dd 00 00  read a value to D1',
+                'WRITE     08 dd 00 00  write a value from D1',
+                'SQRT      09 dd 00 dd  (D3)=sqrt(D1)',
+                'ABS       10 dd 00 dd  (D3)=|D1|',
+                'OC:   operation code',
+                'D0-2: operands',
+                '(Dx): value at Dx address',
+                's:    sign of the number [0/1, +/-]',
+                'd:    decimal number [0..9]');
   MESSAGE:      array[0..29] of string[39] = (
                 'No such command!',
                 'The 1st ',
@@ -454,8 +475,9 @@ begin
   { show information about machine code }
   if p1 = 'code' then
   begin
-
-
+    for b := 0 to INSTARRSIZE do
+      if b = 15 then writeln(INST_INF[1]) else
+        if b > 15 then writeln(INST_INF[b - 1]) else writeln(INST_INF[b]);
   end else
   begin
     l := false;
@@ -661,20 +683,24 @@ var
   ec:  integer;
   ip1: integer;
 
+{ ERROR CODES OF THE INTRUCTIONS: 
+  0: the operation was completed successfully
+  1: incorrect input data
+  2: the operation completed successfully, but an overflow occurred }
+
 { INSTRUCTION 'ADD' }
-function opcode01(d1, d2, d3: byte): boolean;
+function opcode01(d1, d2, d3: byte): byte;
 var
-  r, m, n: real;
+  r, m, n, o: real;
 begin
-  opcode01 := true;
+  opcode01 := 0;
   { check input data }
-  if mem[d1].data[0] div 10 > 1 then opcode01 := false;
-  if opcode01 then
+  if mem[d1].data[1] div 10 > 1 then opcode01 := 1 else
   begin
     { convert bytes to real }
     r := (mem[d1].data[1] mod 10) * 10000 +
-          mem[d1].data[2] * 100 + 
-          mem[d1].data[3]; 
+          mem[d1].data[2] * 100 +
+          mem[d1].data[3];
     if mem[d1].data[1] div 10 = 1 then r := r * (-1);
     m := (mem[d2].data[1] mod 10) * 10000 +
           mem[d2].data[2] * 100 + 
@@ -682,71 +708,156 @@ begin
     if mem[d2].data[1] div 10 = 1 then m := m * (-1);
     { operation }
     n := r + m;
+    { overflow }
+    if (n > 99999.0) or (n < -99999.0) then opcode01 := 2;
     { convert real to bytes }
-    if n < 0 then mem[d3].data[0] := 10 else mem[d3].data[0] := 0;
-    n := abs(trunc(n));
-    mem[d3].data[3] := round(n - 100 * trunc(n / 100));
-    n := trunc(n / 100);
-    mem[d3].data[2] := round(n - 100 * trunc(n / 100));
-    n := trunc(n / 100);
-    mem[d3].data[1] := round(n - 100 * trunc(n / 100));
-    n := trunc(n / 100);
-    mem[d3].data[0] := mem[d3].data[0] + round(n);
+    o := abs(trunc(n));
+    mem[d3].data[3] := round(o - 100 * trunc(o / 100));
+    o := trunc(o / 100);
+    mem[d3].data[2] := round(o - 100 * trunc(o / 100));
+    o := trunc(o / 100);
+    mem[d3].data[1] := round(o);
+    mem[d3].data[1] := mem[d3].data[1] - (mem[d3].data[1] div 10) * 10;
+    if n < 0 then mem[d3].data[1] := mem[d3].data[1] + 10;
   end;
 end;
 
 { INSTRUCTION 'SUBTRACT' }
-function opcode02(d1, d2, d3: byte): boolean;
+function opcode02(d1, d2, d3: byte): byte;
+var
+  r, m, n, o: real;
 begin
-  opcode02 := true;
+  opcode02 := 0;
+  { check input data }
+  if mem[d1].data[1] div 10 > 1 then opcode02 := 1 else
+  begin
+    { convert bytes to real }
+    r := (mem[d1].data[1] mod 10) * 10000 +
+          mem[d1].data[2] * 100 +
+          mem[d1].data[3];
+    if mem[d1].data[1] div 10 = 1 then r := r * (-1);
+    m := (mem[d2].data[1] mod 10) * 10000 +
+          mem[d2].data[2] * 100 +
+          mem[d2].data[3];
+    if mem[d2].data[1] div 10 = 1 then m := m * (-1);
+    { operation }
+    n := r - m;
+    { overflow }
+    if (n > 99999.0) or (n < -99999.0) then opcode02 := 2;
+    { convert real to bytes }
+    o := abs(trunc(n));
+    mem[d3].data[3] := round(o - 100 * trunc(o / 100));
+    o := trunc(o / 100);
+    mem[d3].data[2] := round(o - 100 * trunc(o / 100));
+    o := trunc(o / 100);
+    mem[d3].data[1] := round(o);
+    mem[d3].data[1] := mem[d3].data[1] - (mem[d3].data[1] div 10) * 10;
+    if n < 0 then mem[d3].data[1] := mem[d3].data[1] + 10;
+  end;
 end;
 
 { INSTRUCTION 'MULTIPLY' }
-function opcode03(d1, d2, d3: byte): boolean;
+function opcode03(d1, d2, d3: byte): byte;
+var
+  r, m, n, o: real;
 begin
-  opcode03 := true;
+  opcode03 := 0;
+  { check input data }
+  if mem[d1].data[1] div 10 > 1 then opcode03 := 1 else
+  begin
+    { convert bytes to real }
+    r := (mem[d1].data[1] mod 10) * 10000 +
+          mem[d1].data[2] * 100 +
+          mem[d1].data[3];
+    if mem[d1].data[1] div 10 = 1 then r := r * (-1);
+    m := (mem[d2].data[1] mod 10) * 10000 +
+          mem[d2].data[2] * 100 +
+          mem[d2].data[3];
+    if mem[d2].data[1] div 10 = 1 then m := m * (-1);
+    { operation }
+    n := r * m;
+    { overflow }
+    if (n > 99999.0) or (n < -99999.0) then opcode03 := 2;
+    { convert real to bytes }
+    o := abs(trunc(n));
+    mem[d3].data[3] := round(o - 100 * trunc(o / 100));
+    o := trunc(o / 100);
+    mem[d3].data[2] := round(o - 100 * trunc(o / 100));
+    o := trunc(o / 100);
+    mem[d3].data[1] := round(o);
+    mem[d3].data[1] := mem[d3].data[1] - (mem[d3].data[1] div 10) * 10;
+    if n < 0 then mem[d3].data[1] := mem[d3].data[1] + 10;
+  end;
 end;
 
 { INSTRUCTION 'DIVIDE' }
-function opcode04(d1, d2, d3: byte): boolean;
+function opcode04(d1, d2, d3: byte): byte;
+var
+  r, m, n, o: real;
 begin
-  opcode04 := true;
+  opcode04 := 0;
+  { check input data }
+  if mem[d1].data[1] div 10 > 1 then opcode04 := 1 else
+  begin
+    { convert bytes to real }
+    r := (mem[d1].data[1] mod 10) * 10000 +
+          mem[d1].data[2] * 100 +
+          mem[d1].data[3];
+    if mem[d1].data[1] div 10 = 1 then r := r * (-1);
+    m := (mem[d2].data[1] mod 10) * 10000 +
+          mem[d2].data[2] * 100 +
+          mem[d2].data[3];
+    if mem[d2].data[1] div 10 = 1 then m := m * (-1);
+    { operation }
+    n := r / m;
+    { overflow }
+    if (n > 99999.0) or (n < -99999.0) then opcode04 := 2;
+    { convert real to bytes }
+    o := abs(trunc(n));
+    mem[d3].data[3] := round(o - 100 * trunc(o / 100));
+    o := trunc(o / 100);
+    mem[d3].data[2] := round(o - 100 * trunc(o / 100));
+    o := trunc(o / 100);
+    mem[d3].data[1] := round(o);
+    mem[d3].data[1] := mem[d3].data[1] - (mem[d3].data[1] div 10) * 10;
+    if n < 0 then mem[d3].data[1] := mem[d3].data[1] + 10;
+  end;
 end;
 
 { INSTRUCTION 'BRANCH' }
-function opcode05(d1, d2, d3: byte): boolean;
+function opcode05(d1, d2, d3: byte): byte;
 begin
-  opcode05 := true;
+  opcode05 := 0;
 end;
 
 { INSTRUCTION 'HALT' }
-function opcode06(d1, d2, d3: byte): boolean;
+function opcode06(d1, d2, d3: byte): byte;
 begin
-  opcode06 := true;
+  opcode06 := 0;
 end;
 
 { INSTRUCTION 'READ' }
-function opcode07(d1, d2, d3: byte): boolean;
+function opcode07(d1, d2, d3: byte): byte;
 begin
-  opcode07 := true;
+  opcode07 := 0;
 end;
 
 { INSTRUCTION 'WRITE' }
-function opcode08(d1, d2, d3: byte): boolean;
+function opcode08(d1, d2, d3: byte): byte;
 begin
-  opcode08 := true;
+  opcode08 := 0;
 end;
 
 { INSTRUCTION 'SQRT' }
-function opcode09(d1, d2, d3: byte): boolean;
+function opcode09(d1, d2, d3: byte): byte;
 begin
-  opcode09 := true;
+  opcode09 := 0;
 end;
 
 { INSTRUCTION 'ABS' }
-function opcode10(d1, d2, d3: byte): boolean;
+function opcode10(d1, d2, d3: byte): byte;
 begin
-  opcode10 := true;
+  opcode10 := 0;
 end;
 
 begin
@@ -877,3 +988,4 @@ begin
   until quit = true;
   halt(0);
 end.
+
