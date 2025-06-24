@@ -31,8 +31,9 @@ var
   prg_status:   byte;                   { program status 0/1/2 stop/run/paused }
   quit:         boolean;
   splitted:     array[0..7] of TSplitted;                   { splitted command }
+  trace:        boolean;
 const
-  COMMARRSIZE = 14;
+  COMMARRSIZE = 15;
   INSTARRSIZE = 19;
   COMMENT =     ';';
   HEADER1 =     'DATASSim v0.1 for CP/M and DOS';
@@ -43,7 +44,7 @@ const
   COMMANDS:     array[0..COMMARRSIZE] of string[7] = (
                 'break',  'comment','deposit','dump',   'examine','export',
                 'fill',   'help',   'import', 'load',   'quit',   'reset',
-                'run',    'save',   'step');
+                'run',    'save',   'step',   'trace');
   COMMANDS_INF: array[0..1,0..COMMARRSIZE] of string[63] = ((
                 'set, get and reset breakpoint address',
                 'add or remove a sigle-line note for AA address',
@@ -59,7 +60,8 @@ const
                 'reset simulator',
                 'run program from AA address',
                 'save source code',
-                'run program step-by-step from AA address'),(
+                'run program step-by-step from AA address',
+                'turn tracking on and off'),(
                 'break [AA|-]             ',
                 'comment AA Jump\ to\ 12|-',
                 'deposit AA D0 D1 D2 D3   ',
@@ -74,9 +76,10 @@ const
                 'reset                    ',
                 'run [AA]                 ',
                 'save filename.lst        ',
-                'step                     '));
+                'step                     ',
+                'trace'));
   INST_INF:     array[0..INSTARRSIZE] of string[46] = (
-                'name      OC D0 D1 D2  operation',
+                'name      OC D1 D2 D3  operation',
                 '----------------------------------------------',
                 '          00 sd dd dd  value at this address' ,
                 'ADD       01 dd dd dd  (D3)=(D1) + (D2)',
@@ -96,7 +99,7 @@ const
                 '(Dx): value at Dx address',
                 's:    sign of the number [0/1, +/-]',
                 'd:    decimal number [0..9]');
-  MESSAGE:      array[0..29] of string[39] = (
+  MESSAGE:      array[0..31] of string[39] = (
                 'No such command!',
                 'The 1st ',
                 'The 2nd ',
@@ -126,7 +129,9 @@ const
                 'The simulator has been reset.',
                 'Memory content is saved to ',
                 'Run program from address ',
-                'Step-by-step execution from address ');
+                'Step-by-step execution from address ',
+                'Trace on.',
+                'Trace off.');
 
 { INSERT ZERO BEFORE [0-9] }
 function addzero(v: integer): TTwoDigit;
@@ -317,10 +322,10 @@ begin
       if b <= 99 then
       begin
         write(addzero(b), ': ');
-        write(addzero(mem[b].data[0]), '  ');
-        write(addzero(mem[b].data[1]), '  ');
-        write(addzero(mem[b].data[2]), '  ');
-        write(addzero(mem[b].data[3]), '  ');
+        write(addzero(mem[b].data[0]), ' ');
+        write(addzero(mem[b].data[1]), ' ');
+        write(addzero(mem[b].data[2]), ' ');
+        write(addzero(mem[b].data[3]), ' ');
         if length(mem[b].comment) > 0 then write(';' + mem[b].comment);
         writeln;
       end;
@@ -673,6 +678,23 @@ begin
   end;
 end;
 
+{ COMMAND 'trace' }
+procedure cmd_trace(p1: TSplitted);
+var
+ e: byte;
+begin
+  e := 0;
+  { check parameters and set value }
+  if length(p1) = 0 then trace := not trace else
+    if upcase(p1) = 'ON' then trace := true else
+      if upcase(p1) = 'OFF' then trace := false else
+      e := 11;
+  if e = 11
+    then writeln(MESSAGE[1] + MESSAGE[8])
+    else
+      if trace then writeln(MESSAGE[30]) else writeln(MESSAGE[31]);
+end;
+
 { COMMAND 'run' }
 procedure cmd_run(sbs: boolean; p1: TSplitted);
 var
@@ -861,7 +883,7 @@ end;
 { INSTRUCTION 'SQRT' }
 function opcode09(d1, d2, d3: byte): byte;
 var
-  r, m, n, o: real;
+  r, n, o: real;
 begin
   opcode09 := 0;
   { check input data }
@@ -873,7 +895,8 @@ begin
           mem[d1].data[3];
     if mem[d1].data[1] div 10 = 1 then r := r * (-1);
     { operation }
-    n := r * r;
+    n := sqrt(r);
+    writeln(n);
     { overflow }
     if (n > 99999.0) or (n < -99999.0) then opcode09 := 2;
     { convert real to bytes }
@@ -891,8 +914,32 @@ end;
 
 { INSTRUCTION 'ABS' }
 function opcode10(d1, d2, d3: byte): byte;
+var
+  r, n, o: real;
 begin
   opcode10 := 0;
+  { check input data }
+  if mem[d1].data[1] div 10 > 1 then opcode10 := 1 else
+  begin
+    { convert bytes to real }
+    r := (mem[d1].data[1] mod 10) * 10000 +
+          mem[d1].data[2] * 100 +
+          mem[d1].data[3];
+    if mem[d1].data[1] div 10 = 1 then r := r * (-1);
+    { operation }
+    n := abs(r);
+    { overflow }
+    if (n > 99999.0) or (n < -99999.0) then opcode10 := 2;
+    { convert real to bytes }
+    o := abs(trunc(n));
+    mem[d3].data[3] := round(o - 100 * trunc(o / 100));
+    o := trunc(o / 100);
+    mem[d3].data[2] := round(o - 100 * trunc(o / 100));
+    o := trunc(o / 100);
+    mem[d3].data[1] := round(o);
+    mem[d3].data[1] := mem[d3].data[1] - (mem[d3].data[1] div 10) * 10;
+    if n < 0 then mem[d3].data[1] := mem[d3].data[1] + 10;
+  end;
   prg_counter := prg_counter + 1;
 end;
 
@@ -915,6 +962,7 @@ begin
   if sbs
     then writeln(MESSAGE[29], addzero(prg_counter))
     else writeln(MESSAGE[28], addzero(prg_counter));
+  { run program in memory }
   prg_status := 1;
   repeat
     d0 := mem[prg_counter].data[0];
@@ -922,9 +970,14 @@ begin
     d2 := mem[prg_counter].data[2];
     d3 := mem[prg_counter].data[3];
     prg_error := 0;
-
-    writeln(addzero(prg_counter),': ', addzero(d0), ' ', addzero(d1), ' ', addzero(d2), ' ', addzero(d3));
-          
+    { show actual line (memory cell) }
+    if trace then
+      writeln(addzero(prg_counter),': ',
+              addzero(d0), ' ',
+              addzero(d1), ' ',
+              addzero(d2), ' ',
+              addzero(d3));
+    { call operation }
     case d0 of
        0: prg_counter := prg_counter + 1;
        1: prg_error := opcode01(d1, d2, d3);
@@ -945,6 +998,7 @@ begin
       prg_error := 98;
       prg_status := 0;
     end;
+    { show error messages }
     case prg_error of
        1: writeln(prg_counter, ': Incorrect input data.');
        2: writeln(prg_counter, ': Overflow occurred.');
@@ -1033,6 +1087,7 @@ begin
           12: cmd_run(false, splitted[1]);
           13: cmd_save(splitted[1]);
           14: cmd_run(true, splitted[1]);
+          15: cmd_trace(splitted[1]);
         end;
       end else writeln(MESSAGE[0]);
     end;
@@ -1048,6 +1103,7 @@ begin
   writeln;
   { initialize memory, breakpoint and program counter }
   cmd_reset;
+  trace := false;
   writeln(HINT);
   { main operation }
   repeat
