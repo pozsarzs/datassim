@@ -1,0 +1,7 @@
+; Calculate the sum of 10000 and 90223
+01 05 00 00 52  ;jump to address 52
+50 00 01 00 00  ;store 10000 at address 50
+51 00 09 02 23  ;store 90223 at address 51
+52 01 51 50 10  ;add values at 50 and 51, and store at 10
+54 08 10 00 00  ;write value at 11 to console
+55 06 00 00 00  ;stop program

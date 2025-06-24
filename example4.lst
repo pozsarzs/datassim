@@ -1,0 +1,14 @@
+;Sum and average of 20 numbers
+01 01 40 40 41
+02 07 42 00 00 ;read x to address 42 
+03 01 42 41 41 ;calculate sum
+04 02 43 44 43
+05 05 02 43 02
+06 08 41 00 00 ;print sum 
+07 04 41 45 46 ;calculate average
+08 08 46 00 00 ;print average
+09 06 00 00 00 ;print average
+40 00 00 00 00 ;constant 0 
+43 00 00 00 20 ;constant 20
+44 00 00 00 01 ;constant 1
+45 00 00 00 20 ;constant 20

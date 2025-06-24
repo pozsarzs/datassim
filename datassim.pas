@@ -31,7 +31,7 @@ var
   prg_status:   byte;                   { program status 0/1/2 stop/run/paused }
   quit:         boolean;
   splitted:     array[0..7] of TSplitted;                   { splitted command }
-  trace:        boolean;
+  trace:        boolean;                                       { turn tracking }
 const
   COMMARRSIZE = 15;
   INSTARRSIZE = 19;
@@ -77,7 +77,7 @@ const
                 'run [AA]                 ',
                 'save filename.lst        ',
                 'step                     ',
-                'trace'));
+                'trace [on|off]           '));
   INST_INF:     array[0..INSTARRSIZE] of string[46] = (
                 'name      OC D1 D2 D3  operation',
                 '----------------------------------------------',
@@ -95,7 +95,7 @@ const
                 'SQRT      09 dd 00 dd  (D3)=sqrt(D1)',
                 'ABS       10 dd 00 dd  (D3)=|D1|',
                 'OC:   operation code',
-                'D0-2: operands',
+                'D1-3: operands',
                 '(Dx): value at Dx address',
                 's:    sign of the number [0/1, +/-]',
                 'd:    decimal number [0..9]');
@@ -868,6 +868,7 @@ end;
 function opcode07(d1, d2, d3: byte): byte;
 begin
   opcode07 := 0;
+  { ... }
   prg_counter := prg_counter + 1;
 end;
 
@@ -875,8 +876,10 @@ end;
 function opcode08(d1, d2, d3: byte): byte;
 begin
   opcode08 := 0;
-  writeln(mem[d1].data[0] mod 10, addzero(mem[d1].data[2]),
-          addzero(mem[d1].data[2])); 
+  if mem[d1].data[1] div 10 = 1 then write('-');
+  writeln(mem[d1].data[1] mod 10,
+          addzero(mem[d1].data[2]),
+          addzero(mem[d1].data[3])); 
   prg_counter := prg_counter + 1;
 end;
 
@@ -896,7 +899,6 @@ begin
     if mem[d1].data[1] div 10 = 1 then r := r * (-1);
     { operation }
     n := sqrt(r);
-    writeln(n);
     { overflow }
     if (n > 99999.0) or (n < -99999.0) then opcode09 := 2;
     { convert real to bytes }
@@ -1112,4 +1114,3 @@ begin
   until quit = true;
   halt(0);
 end.
-

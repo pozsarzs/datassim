@@ -1,0 +1,5 @@
+;Sum of two read numbers
+01 07 50 00 00 ;read A
+02 07 51 00 00 ;read B
+03 01 50 51 52 ;C=A+B
+04 08 52 00 00 ;write C
