@@ -28,7 +28,7 @@ var
   com:          TCommand;                               { command line content }
   mem:          array[0..99] of TMemcell;                           { 'memory' }
   prg_counter:  byte;                                        { program counter }
-  prg_status:   array[0..3] of boolean;                       { program status }
+  prg_status:   byte;                   { program status 0/1/2 stop/run/paused }
   quit:         boolean;
   splitted:     array[0..7] of TSplitted;                   { splitted command }
 const
@@ -631,10 +631,7 @@ begin
   end;  
   breakpoint := 255;
   prg_counter := 0;
-  prg_status[0] := true;
-  prg_status[1] := false;
-  prg_status[2] := false;
-  prg_status[3] := false;
+  prg_status := 0;
   writeln(MESSAGE[26]);
 end;
 
@@ -682,11 +679,8 @@ var
   e:   byte;
   ec:  integer;
   ip1: integer;
-
-{ ERROR CODES OF THE INTRUCTIONS: 
-  0: the operation was completed successfully
-  1: incorrect input data
-  2: the operation completed successfully, but an overflow occurred }
+  d0, d1, d2, d3: byte;
+  prg_error: byte;
 
 { INSTRUCTION 'ADD' }
 function opcode01(d1, d2, d3: byte): byte;
@@ -720,6 +714,7 @@ begin
     mem[d3].data[1] := mem[d3].data[1] - (mem[d3].data[1] div 10) * 10;
     if n < 0 then mem[d3].data[1] := mem[d3].data[1] + 10;
   end;
+  prg_counter := prg_counter + 1;
 end;
 
 { INSTRUCTION 'SUBTRACT' }
@@ -754,6 +749,7 @@ begin
     mem[d3].data[1] := mem[d3].data[1] - (mem[d3].data[1] div 10) * 10;
     if n < 0 then mem[d3].data[1] := mem[d3].data[1] + 10;
   end;
+  prg_counter := prg_counter + 1;
 end;
 
 { INSTRUCTION 'MULTIPLY' }
@@ -788,6 +784,7 @@ begin
     mem[d3].data[1] := mem[d3].data[1] - (mem[d3].data[1] div 10) * 10;
     if n < 0 then mem[d3].data[1] := mem[d3].data[1] + 10;
   end;
+  prg_counter := prg_counter + 1;
 end;
 
 { INSTRUCTION 'DIVIDE' }
@@ -822,17 +819,26 @@ begin
     mem[d3].data[1] := mem[d3].data[1] - (mem[d3].data[1] div 10) * 10;
     if n < 0 then mem[d3].data[1] := mem[d3].data[1] + 10;
   end;
+  prg_counter := prg_counter + 1;
 end;
 
 { INSTRUCTION 'BRANCH' }
 function opcode05(d1, d2, d3: byte): byte;
 begin
   opcode05 := 0;
+  case d1 of
+    0: prg_counter := d3;
+    1: if d2 < 0 then prg_counter := d3;
+    2: if d2 > 0 then prg_counter := d3;
+  else
+    opcode05 := 3;
+  end;
 end;
 
 { INSTRUCTION 'HALT' }
 function opcode06(d1, d2, d3: byte): byte;
 begin
+  prg_status := 0;
   opcode06 := 0;
 end;
 
@@ -840,24 +846,54 @@ end;
 function opcode07(d1, d2, d3: byte): byte;
 begin
   opcode07 := 0;
+  prg_counter := prg_counter + 1;
 end;
 
 { INSTRUCTION 'WRITE' }
 function opcode08(d1, d2, d3: byte): byte;
 begin
   opcode08 := 0;
+  writeln(mem[d1].data[0] mod 10, addzero(mem[d1].data[2]),
+          addzero(mem[d1].data[2])); 
+  prg_counter := prg_counter + 1;
 end;
 
 { INSTRUCTION 'SQRT' }
 function opcode09(d1, d2, d3: byte): byte;
+var
+  r, m, n, o: real;
 begin
   opcode09 := 0;
+  { check input data }
+  if mem[d1].data[1] div 10 > 1 then opcode09 := 1 else
+  begin
+    { convert bytes to real }
+    r := (mem[d1].data[1] mod 10) * 10000 +
+          mem[d1].data[2] * 100 +
+          mem[d1].data[3];
+    if mem[d1].data[1] div 10 = 1 then r := r * (-1);
+    { operation }
+    n := r * r;
+    { overflow }
+    if (n > 99999.0) or (n < -99999.0) then opcode09 := 2;
+    { convert real to bytes }
+    o := abs(trunc(n));
+    mem[d3].data[3] := round(o - 100 * trunc(o / 100));
+    o := trunc(o / 100);
+    mem[d3].data[2] := round(o - 100 * trunc(o / 100));
+    o := trunc(o / 100);
+    mem[d3].data[1] := round(o);
+    mem[d3].data[1] := mem[d3].data[1] - (mem[d3].data[1] div 10) * 10;
+    if n < 0 then mem[d3].data[1] := mem[d3].data[1] + 10;
+  end;
+  prg_counter := prg_counter + 1;
 end;
 
 { INSTRUCTION 'ABS' }
 function opcode10(d1, d2, d3: byte): byte;
 begin
   opcode10 := 0;
+  prg_counter := prg_counter + 1;
 end;
 
 begin
@@ -873,18 +909,50 @@ begin
     case e of
       11: writeln(MESSAGE[1] + MESSAGE[8]);
       12: writeln(MESSAGE[1] + MESSAGE[7]);
-    else
-      begin
-        prg_counter := ip1;
-        if sbs
-          then writeln(MESSAGE[29], addzero(prg_counter))
-          else writeln(MESSAGE[28], addzero(prg_counter));
-
-        { ... }
-
-      end;
     end;
+    prg_counter := ip1;
   end;
+  if sbs
+    then writeln(MESSAGE[29], addzero(prg_counter))
+    else writeln(MESSAGE[28], addzero(prg_counter));
+  prg_status := 1;
+  repeat
+    d0 := mem[prg_counter].data[0];
+    d1 := mem[prg_counter].data[1];
+    d2 := mem[prg_counter].data[2];
+    d3 := mem[prg_counter].data[3];
+    prg_error := 0;
+
+    writeln(addzero(prg_counter),': ', addzero(d0), ' ', addzero(d1), ' ', addzero(d2), ' ', addzero(d3));
+          
+    case d0 of
+       0: prg_counter := prg_counter + 1;
+       1: prg_error := opcode01(d1, d2, d3);
+       2: prg_error := opcode02(d1, d2, d3);
+       3: prg_error := opcode03(d1, d2, d3);
+       4: prg_error := opcode04(d1, d2, d3);
+       5: prg_error := opcode05(d1, d2, d3);
+       6: prg_error := opcode06(d1, d2, d3);
+       7: prg_error := opcode07(d1, d2, d3);
+       8: prg_error := opcode08(d1, d2, d3);
+       9: prg_error := opcode09(d1, d2, d3);
+      10: prg_error := opcode10(d1, d2, d3);
+    else
+      prg_error := 99;
+    end;
+    if prg_counter = 100 then
+    begin
+      prg_error := 98;
+      prg_status := 0;
+    end;
+    case prg_error of
+       1: writeln(prg_counter, ': Incorrect input data.');
+       2: writeln(prg_counter, ': Overflow occurred.');
+       3: writeln(prg_counter, ': Incorrect jump mode.');
+      98: writeln('The program has run out of memory.');
+      99: writeln(prg_counter, ': No such instruction.');
+    end;
+  until prg_status = 0;
 end;
 
 { PARSING COMMANDS }
