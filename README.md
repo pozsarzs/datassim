@@ -2,7 +2,7 @@
 
 **Simulator for DATAS machine language**  
 
-## About this project
+### About this project
 
 DATAS is an educational, artificial machine language designed in the 1970s to demonstrate how machine code works.
 
@@ -10,7 +10,7 @@ It had no real hardware, i.e. it did not belong to a real computer, but was a th
 
 Its typical use was to teach Fortran or other high-level languages, so that students could understand what was going on "under the hood".
 
-I discovered it in the Hungarian translation of the book 'Algorithms and their computer solutions' [^1]. This is the only source, I couldn't find anything about it on the Internet.
+I discovered it in the Hungarian translation of the book *Algorithms and their computer solutions* [^1]. This is the only source, I couldn't find anything about it on the Internet.
 
 > [!NOTE]
 > If anyone has any information or memories about this language that they can share, I  will be happy to take them and include them in the documentation.
@@ -23,7 +23,7 @@ A special feature is that the memory cells can be commented on, as this is an ed
 
 Copyright (C) 2025 Pozsár Zsolt <pozsarzs@gmail.com>  
 
-## Features
+### Features
 
 |features                |                                                     |
 |------------------------|-----------------------------------------------------|
@@ -44,34 +44,36 @@ Copyright (C) 2025 Pozsár Zsolt <pozsarzs@gmail.com>
 |import to file          |memory content from binary file                      |
 |other utility programs  |source code to binary file converter                 |
 
-## Screenshots
+### Screenshots
 
 Startup screen
 ![CLI](datassim.png)
 
 
-## The commands  
+### The commands
 
 The program can be controlled with the following command line commands.
 
-break [AA|-]             	set, get and reset breakpoint address
-comment AA Jump\ to\ 12|-	add or remove a sigle-line note for AA address
-deposit AA D0 D1 D2 D3   	store D0-3 value at AA address
-dump AA CN               	print the value of memory cell number CN from AA
-examine AA               	examine value at AA address
-export filename.bin      	export memory content to a binary file
-fill AA CN D0 D1 D2 D3   	fill the memory cell number CN from AA with the value D0-3
-help [command]           	help with using the program
-import filename.bin      	import memory content from a binary file
-load filename.lst        	load source code
-quit                     	exit the simulator program
-reset                    	reset simulator
-run [AA]                 	run program from AA address
-save filename.lst        	save source code
-step                     	run program step-by-step from AA address
-trace [on|off]           	turn tracking on and off
+|   name                     |   operation                                                |
+|:---------------------------|:-----------------------------------------------------------|
+|`break [AA|-]`              | set, get and reset breakpoint address                      |
+|`comment AA Jump\ to\ 12|-` | add or remove a sigle-line note for AA address             |
+|`deposit AA D0 D1 D2 D3`    | store D0-3 value at AA address                             |
+|`dump AA CN`                | print the value of memory cell number CN from AA           |
+|`examine AA`                | examine value at AA address                                |
+|`export filename.bin`       | export memory content to a binary file                     |
+|`fill AA CN D0 D1 D2 D3`    | fill the memory cell number CN from AA with the value D0-3 |
+|`help [command]`            | help with using the program                                |
+|`import filename.bin`       | import memory content from a binary file                   |
+|`load filename.lst`         | load source code                                           |
+|`quit`                      | exit the simulator program                                 |
+|`reset`                     | reset simulator                                            |
+|`run [AA]`                  | run program from AA address                                |
+|`save filename.lst`         | save source code                                           |
+|`step`                      | run program step-by-step from AA address                   |
+|`trace [on|off]`            | turn tracking on and off                                   |
 
-## The instructions
+### The instructions
 
 The following instructions can be used in the machine code program.
 
@@ -92,19 +94,21 @@ The following instructions can be used in the machine code program.
 |`ABS`     | dd | 10 | dd | 00 | dd | (D3)=|D1|               |
 
 **Note:** 
-AA:
-D0:   operation code
-D1-3: operands
-(Dx): value at Dx address
-s:    sign of the number [0/1, +/-]
+AA:   address
+D0:   operation code 
+D1-3: operands 
+(Dx): value at Dx address 
+s:    sign of the number [0/1, +/-] 
 
-## Source file format
+### Source file format
 
+```
 ; Calculate the square root of 23*100
 01 05 00 00 52 ;jump to address 52
 50 00 00 01 00 ;store 100 at address 50
+```
 
-## Hotkeys
+### Hotkeys
 
 |  key       | operation                                   |
 |:----------:|:--------------------------------------------|
