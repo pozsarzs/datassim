@@ -13,6 +13,10 @@
   FOR A PARTICULAR PURPOSE. }
 
 program datassim;
+
+{ UNCOMMENT THIS IF YOU COMPILE THIS WITH TURBO PASCAL > 3.X OR FREEPASCAL: }
+{ uses crt; }
+
 type
   TCommand =    string[255];
   TFilename =   string[12];
@@ -36,11 +40,12 @@ const
   COMMARRSIZE = 15;
   INSTARRSIZE = 19;
   COMMENT =     ';';
-  HEADER1 =     'DATASSim v0.1 for CP/M and DOS';
+  HEADER1 =     'DATASSim v0.1 for CP/M, DOS and Linux';
   HEADER2 =     '(C) 2025 Pozsar Zsolt <pozsarzs@gmail.com>';
   HEADER3 =     'Licence: EUPL v1.2';
   HINT =        'Type ''help [command]'' or ''help code'' for more information.';
-  PROMPT =      'SIM>';
+  PROMPT1 =     'SIM>';
+  PROMPT2 =     'PRG>';
   COMMANDS:     array[0..COMMARRSIZE] of string[7] = (
                 'break',  'comment','deposit','dump',   'examine','export',
                 'fill',   'help',   'import', 'load',   'quit',   'reset',
@@ -132,6 +137,33 @@ const
                 'Step-by-step execution from address ',
                 'Trace on.',
                 'Trace off.');
+
+{ WAIT FOR A KEY - UNCOMMENT CORRESPONDING LINES: }
+
+{ TURBO PASCAL > 3.X OR FREEPASCAL }
+procedure waitforkey;
+begin
+  readkey;
+end;
+
+{ TURBO PASCAL 3.X ON DOS }
+{ procedure waitforkey;
+  type
+    TRegPack = record
+                 AX, BX, CX, DX, BP, SI, DI, DS, ES, Flags: integer;
+               end;
+  var
+    regs:    TRegPack;
+  begin
+    regs.AX := $0100;
+    msdos(regs);
+    writeln;
+  end; }
+
+{ TURBO PASCAL 3.X ON CP/M }
+{ procedure waitforkey;
+  begin
+  end; }
 
 { INSERT ZERO BEFORE [0-9] }
 function addzero(v: integer): TTwoDigit;
@@ -866,9 +898,29 @@ end;
 
 { INSTRUCTION 'READ' }
 function opcode07(d1, d2, d3: byte): byte;
+var
+  ec:   integer;
+  r, o: real;
+  s:    string[6]; 
 begin
   opcode07 := 0;
-  { ... }
+  write(PROMPT2);
+  readln(s);
+  { check input data }
+  val(s, r, ec);
+  if (ec = 0) and (r >= -99999.0) and (r <= 99999.0) then
+  begin
+    r := round(r);
+    { convert real to bytes }
+    o := abs(trunc(r));
+    mem[d1].data[3] := round(o - 100 * trunc(o / 100));
+    o := trunc(o / 100);
+    mem[d1].data[2] := round(o - 100 * trunc(o / 100));
+    o := trunc(o / 100);
+    mem[d1].data[1] := round(o);
+    mem[d1].data[1] := mem[d1].data[1] - (mem[d1].data[1] div 10) * 10;
+    if r < 0 then mem[d1].data[1] := mem[d1].data[1] + 10;
+  end else opcode07 := 1;
   prg_counter := prg_counter + 1;
 end;
 
@@ -995,9 +1047,14 @@ begin
     else
       prg_error := 99;
     end;
-    if prg_counter = 100 then
+    if prg_counter >= 100 then
     begin
       prg_error := 98;
+      prg_status := 0;
+    end;
+    if prg_counter = breakpoint then
+    begin
+      prg_error := 97;
       prg_status := 0;
     end;
     { show error messages }
@@ -1005,9 +1062,13 @@ begin
        1: writeln(prg_counter, ': Incorrect input data.');
        2: writeln(prg_counter, ': Overflow occurred.');
        3: writeln(prg_counter, ': Incorrect jump mode.');
+       4: writeln(prg_counter, ': Incorrect input data. [-99999..99999].');
+      97: writeln(prg_counter, 'The program stops at the breakpoint.');
       98: writeln('The program has run out of memory.');
       99: writeln(prg_counter, ': No such instruction.');
     end;
+    { step-by-step running}
+    if sbs then waitforkey;
   until prg_status = 0;
 end;
 
@@ -1109,8 +1170,9 @@ begin
   writeln(HINT);
   { main operation }
   repeat
-    write(PROMPT); readln(com);
+    write(PROMPT1); readln(com);
     quit := parsingcommand(com);
   until quit = true;
   halt(0);
 end.
+

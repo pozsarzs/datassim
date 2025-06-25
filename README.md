@@ -108,11 +108,4 @@ s:    sign of the number [0/1, +/-]
 50 00 00 01 00 ;store 100 at address 50
 ```
 
-### Hotkeys
-
-|  key       | operation                                   |
-|:----------:|:--------------------------------------------|
-| `p` or `P` | suspend the execution of the loaded program |
-| `s` or `S` | stop the running of the loaded program      |
-
 [^1]: Algorithms and Their Computer Solutions by Lucio Artiaga and LLoyd D. Davis (1972 Charles E. Merill Publishing Company)
