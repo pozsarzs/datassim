@@ -37,7 +37,7 @@ Copyright (C) 2025 Pozsár Zsolt <pozsarzs@gmail.com>
 |internal memory         |100 word size cell (00-99)                           |
 |word format             |8 decimal number (00 00 00 00 - 99 19 99 99)         |
 |instructions            |10                                                   |
-|example scripts         |3 scripts                                            |
+|example scripts         |4 scripts                                            |
 |load from file          |program in text format with comments                 |
 |save to file            |memory content in text format with comments          |
 |export to file          |memory content to binary file                        |
@@ -56,8 +56,8 @@ The program can be controlled with the following command line commands.
 
 |   name                     |   operation                                                |
 |:---------------------------|:-----------------------------------------------------------|
-|`break [AA|-]`              | set, get and reset breakpoint address                      |
-|`comment AA Jump\ to\ 12|-` | add or remove a sigle-line note for AA address             |
+|`break [AA\|-]`             | set, get and reset breakpoint address                      |
+|`comment AA Jump\ to\ 12\|-`| add or remove a sigle-line note for AA address             |
 |`deposit AA D0 D1 D2 D3`    | store D0-3 value at AA address                             |
 |`dump AA CN`                | print the value of memory cell number CN from AA           |
 |`examine AA`                | examine value at AA address                                |
@@ -71,7 +71,7 @@ The program can be controlled with the following command line commands.
 |`run [AA]`                  | run program from AA address                                |
 |`save filename.lst`         | save source code                                           |
 |`step`                      | run program step-by-step from AA address                   |
-|`trace [on|off]`            | turn tracking on and off                                   |
+|`trace [on\|off]`           | turn tracking on and off                                   |
 
 ### The instructions
 
