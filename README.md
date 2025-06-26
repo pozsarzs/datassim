@@ -33,7 +33,7 @@ Copyright (C) 2025 Pozsár Zsolt <pozsarzs@gmail.com>
 |user interface          |CLI                                                  |
 |programming language    |Borland Turbo Pascal 3.x                             |
 |architecture            |ix86, Z80                                            |
-|OS                      |CP/M, DOS, Linux (see comments in the source code)   |
+|OS                      |CP/M and DOS (and others, see comments in the source.|
 |internal memory         |100 word size cell (00-99)                           |
 |word format             |8 decimal number (00 00 00 00 - 99 19 99 99)         |
 |instructions            |10                                                   |
@@ -47,8 +47,10 @@ Copyright (C) 2025 Pozsár Zsolt <pozsarzs@gmail.com>
 ### Screenshots
 
 Startup screen
-![CLI](datassim.png)
+![CLI](screen1.png)
 
+Help about instructions
+![CLI](screen2.png)
 
 ### The commands
 
