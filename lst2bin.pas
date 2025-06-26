@@ -122,5 +122,6 @@ begin
       4: writeln('Illegal character in: ', line) ;
     end;
   end else writeln('Usage lst2bin.com input.lst output.bin');
-  halt(error);
+  halt;
 end.
+
