@@ -79,7 +79,7 @@ const
                 'reset                    ',
                 'run [AA]                 ',
                 'save filename.lst        ',
-                'step                     ',
+                'step [AA]                ',
                 'trace [on|off]           '));
   INST_INF:     array[0..INSTARRSIZE] of string[46] = (
                 'name      OC D1 D2 D3  operation',
