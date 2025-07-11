@@ -26,7 +26,7 @@ begin
     { get breakpoint address }
     if breakpoint = 255
       then writeln(MESSAGE[9])
-      else writeln(MESSAGE[10], addzero(breakpoint));
+      else writeln(MESSAGE[10], addzero(breakpoint), '.');
   end else
   begin
     if p1 = '-' then
@@ -48,7 +48,7 @@ begin
       else
         begin
           breakpoint := ip1;
-          writeln(MESSAGE[12], addzero(ip1));
+          writeln(MESSAGE[12], addzero(breakpoint), '.');
         end;
       end;
     end;
