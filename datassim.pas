@@ -13,40 +13,34 @@
   FOR A PARTICULAR PURPOSE. }
 
 program datassim;
-
-{ UNCOMMENT THIS IF YOU COMPILE THIS WITH TURBO PASCAL > 3.X OR FREEPASCAL: }
+{ Uncomment the next lines if you are compiling with TP > 3.x or Freepascal }
 { uses crt; }
 
 {$I declare.pas}
 
-{ WAIT FOR A KEY - UNCOMMENT CORRESPONDING LINES: }
-
-{ TURBO PASCAL > 3.X OR FREEPASCAL }
-{ procedure waitforkey;
-  begin
-    readkey;
-  end; }
-
-{ TURBO PASCAL 3.X ON DOS }
-{ procedure waitforkey;
-  type
+{ WAIT FOR A KEY }
+procedure waitforkey;
+{ Uncomment the next lines if you are compiling with Turbo Pascal 3.x on DOS }
+{ type
     TRegPack = record
                  AX, BX, CX, DX, BP, SI, DI, DS, ES, Flags: integer;
                end;
   var
-    regs:    TRegPack;
-  begin
-    regs.AX := $0100;
-    msdos(regs);
-    writeln;
-  end; }
+    regs:    TRegPack; }
 
-{ TURBO PASCAL 3.X ON CP/M }
-procedure waitforkey;
 begin
+  { Uncomment the next lines if you are compiling with TP > 3.x or Freepascal }
+  { readkey; }
+
+  { Uncomment the next lines if you are compiling with Turbo Pascal 3.x on DOS }
+  { regs.AX := $0100;
+    msdos(regs);
+    writeln; }
+
+  { Uncomment the next lines if you are compiling with Turbo Pascal 3.x on CP/M }
   bdos(1);
   writeln;
-end;
+end; 
 
 { INSERT ZERO BEFORE [0-9] }
 function addzero(v: integer): TTwoDigit;

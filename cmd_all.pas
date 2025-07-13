@@ -195,7 +195,7 @@ begin
         write(addzero(mem[b].data[1]), ' ');
         write(addzero(mem[b].data[2]), ' ');
         write(addzero(mem[b].data[3]), ' ');
-        if length(mem[b].comment) > 0 then write(';' + mem[b].comment);
+        if length(mem[b].comment) > 0 then write(COMMENT + mem[b].comment);
         writeln;
       end;
     end;
@@ -442,7 +442,7 @@ begin
         for b := 1 to length(s1) do
           if (s1[b] <> #32) and (s1[b] <> #9) then s2 := s2 + s1[b];
         { check comment sign }
-        if s2[1] <> ';' then
+        if s2[1] <> COMMENT then
         begin
           { check length of line }
           if length(s2) < 10 then
@@ -471,7 +471,7 @@ begin
           b := 1;
           repeat
             b := b + 1;
-          until (s1[b] = ';') or (b = length(s1));
+          until (s1[b] = COMMENT) or (b = length(s1));
           { load to memory }
           if b + 1 < length(s1) then
             for b := b + 1 to length(s1) do
@@ -533,7 +533,8 @@ begin
         s := addzero(address) + '  ';
         for data := 0 to 3 do
           s := s + addzero(mem[address].data[data]) + ' ';
-        if length(mem[address].comment) > 0 then s := s + ';' + mem[address].comment;
+        if length(mem[address].comment) > 0
+          then s := s + COMMENT + mem[address].comment;
         writeln(lstfile, s);
       end;
       close(lstfile);
